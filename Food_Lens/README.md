@@ -5,8 +5,6 @@
 
 ---
 
-## Your Specs (i5 13th Gen · 16GB RAM · RTX 3050 6GB)
-
 | Task | Mode | Time |
 |---|---|---|
 | Training | RTX 3050 (GPU) | ~2–3 hrs (10 epochs) |
@@ -157,28 +155,3 @@ curl -X POST http://localhost:8000/predict \
 ```
 
 ---
-
-## Syllabus Coverage
-
-| Your Syllabus Topic | Where It's Used |
-|---|---|
-| Image classification (Unit 3) | MobileNetV3 classification head |
-| Transfer learning (Unit 3) | Fine-tuning ImageNet pretrained weights |
-| Data augmentation (Unit 1) | `train.py` augmentation pipeline |
-| CNNs (Unit 3) | MobileNetV3 backbone |
-| REST API (AAD Unit 2) | FastAPI `/predict`, `/health`, `/classes` |
-| Microservices (AAD Unit 1) | Backend & frontend as separate services |
-| Containerization (AAD Unit 3) | Dockerfile + Docker Compose |
-| GPU / CUDA deployment | RTX 3050 via nvidia-container-toolkit |
-| RBAC (AAD Unit 2) | Extendable: add JWT auth middleware |
-| MLOps / SDLC (AAD Unit 5) | train.py → model.pth → API → Docker pipeline |
-
----
-
-## Extending the Project
-
-- **Add RBAC**: Add FastAPI JWT middleware with admin/user roles
-- **Kubernetes**: Use the provided Dockerfile with a local Minikube cluster
-- **Nutrition API**: Replace hardcoded calories with Edamam or Nutritionix API
-- **Image history**: Add SQLite to log past predictions per user
-- **Batch prediction**: Add a `/predict/batch` endpoint for multiple images
