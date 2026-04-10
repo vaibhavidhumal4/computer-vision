@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodLens — AI Food Recognition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #faf7f2;
+    --warm-white: #fffef9;
+    --ink: #1a1510;
+    --ink-soft: #4a4035;
+    --ink-muted: #8a7a6a;
+    --amber: #d4821a;
+    --amber-light: #f5c16a;
+    --amber-pale: #fef3de;
+    --green: #2d6a4f;
+    --green-pale: #e8f5ee;
+    --red-pale: #fde8e8;
+    --red: #c0392b;
+    --border: #e8e0d0;
+    --shadow: 0 2px 20px rgba(26,21,16,0.08);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Decorative background pattern */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(212,130,26,0.06) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(45,106,79,0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    padding: 40px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .logo-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--amber);
+    border-radius: 50%;
+    margin-bottom: 6px;
+  }
+
+  .logo-tag {
+    font-size: 13px;
+    color: var(--ink-muted);
+    font-weight: 300;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .model-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-muted);
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+  }
+
+  .model-badge .dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Upload zone */
+  .upload-section {
+    margin-bottom: 40px;
+  }
+
+  .upload-zone {
+    background: var(--warm-white);
+    border: 2px dashed var(--border);
+    border-radius: 20px;
+    padding: 56px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--amber);
+    background: var(--amber-pale);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+
+  .upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    background: var(--amber-pale);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    transition: transform 0.2s;
+  }
+
+  .upload-zone:hover .upload-icon {
+    transform: scale(1.1);
+  }
+
+  .upload-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+
+  .upload-sub {
+    font-size: 14px;
+    color: var(--ink-muted);
+    font-weight: 300;
+  }
+
+  .upload-formats {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .format-tag {
+    font-size: 11px;
+    color: var(--ink-muted);
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Preview area */
+  #preview-area {
+    display: none;
+    margin-top: 24px;
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .preview-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .btn-clear {
+    font-size: 12px;
+    color: var(--ink-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+
+  .btn-clear:hover { background: var(--cream); color: var(--red); }
+
+  .preview-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  #preview-img {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    display: block;
+    border-right: 1px solid var(--border);
+  }
+
+  .preview-info {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .info-row strong { color: var(--ink); font-weight: 500; }
+
+  .btn-analyze {
+    margin-top: auto;
+    background: var(--ink);
+    color: var(--warm-white);
+    border: none;
+    border-radius: 12px;
+    padding: 14px 28px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-analyze:hover { background: var(--amber); transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-icon { font-size: 18px; }
+
+  /* Loading */
+  #loading {
+    display: none;
+    padding: 48px;
+    text-align: center;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 16px;
+  }
+
+  /* Results */
+  #results-section {
+    display: none;
+    margin-bottom: 48px;
+  }
+
+  .results-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .results-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    color: var(--ink);
+  }
+
+  .inference-badge {
+    font-size: 12px;
+    color: var(--ink-muted);
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+  }
+
+  /* Top result card */
+  .top-result {
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    box-shadow: var(--shadow);
+    animation: slideUp 0.4s ease;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .top-emoji {
+    font-size: 56px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+  }
+
+  .top-details { flex: 1; }
+
+  .top-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+
+  .top-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .meta-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 400;
+  }
+
+  .chip-cuisine { background: var(--green-pale); color: var(--green); }
+  .chip-calories { background: var(--amber-pale); color: var(--amber); }
+
+  .confidence-bar-wrap {
+    margin-top: 14px;
+  }
+
+  .conf-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+  }
+
+  .conf-bar {
+    height: 6px;
+    background: var(--cream);
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .conf-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--amber-light), var(--amber));
+    border-radius: 3px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0%;
+  }
+
+  /* Other candidates */
+  .other-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+
+  .candidates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .candidate-card {
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideUp 0.4s ease both;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+
+  .candidate-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+
+  .cand-emoji { font-size: 24px; }
+  .cand-info { flex: 1; min-width: 0; }
+
+  .cand-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cand-conf {
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-top: 2px;
+  }
+
+  .cand-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+
+  .cand-fill {
+    height: 100%;
+    background: var(--amber-light);
+    border-radius: 2px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0%;
+  }
+
+  /* Error */
+  #error-box {
+    display: none;
+    background: var(--red-pale);
+    border: 1px solid #f5c6c6;
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    color: var(--red);
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 0;
+    margin-top: 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-muted);
+    letter-spacing: 0.03em;
+  }
+
+  footer span { color: var(--amber); }
+
+  /* Try sample */
+  .sample-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .sample-label {
+    font-size: 12px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .sample-pill {
+    font-size: 12px;
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    transition: all 0.15s;
+  }
+
+  .sample-pill:hover { background: var(--amber-pale); border-color: var(--amber-light); color: var(--amber); }
+
+  /* API status */
+  #api-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-bottom: 28px;
+    padding: 10px 16px;
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: fit-content;
+  }
+
+  #api-status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber-light); }
+  #api-status.ok .dot { background: var(--green); }
+  #api-status.err .dot { background: var(--red); }
+
+  @media (max-width: 600px) {
+    .preview-body { grid-template-columns: 1fr; }
+    #preview-img { border-right: none; border-bottom: 1px solid var(--border); height: 200px; }
+    .top-result { flex-direction: column; text-align: center; }
+    .top-meta { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-text">FoodLens</span>
+        <div class="logo-dot"></div>
+        <span class="logo-tag">AI Recognition</span>
+      </div>
+      <div class="model-badge">
+        <div class="dot"></div>
+        MobileNetV3 · Food-101
+      </div>
+    </div>
+  </header>
+
+  <div id="api-status">
+    <div class="dot"></div>
+    <span id="status-text">Connecting to API...</span>
+  </div>
+
+  <!-- Upload -->
+  <div class="upload-section">
+    <div class="upload-zone" id="drop-zone">
+      <input type="file" id="file-input" accept="image/*">
+      <div class="upload-icon">🍽️</div>
+      <div class="upload-title">Drop your food photo here</div>
+      <div class="upload-sub">or click to browse from your device</div>
+      <div class="upload-formats">
+        <span class="format-tag">JPG</span>
+        <span class="format-tag">PNG</span>
+        <span class="format-tag">WEBP</span>
+        <span class="format-tag">max 10MB</span>
+      </div>
+    </div>
+
+    <div class="sample-row">
+      <span class="sample-label">Try a sample URL:</span>
+      <span class="sample-pill" onclick="loadSampleUrl('https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Eq_it-na_pizza-margherita_sep2005_sml.jpg/320px-Eq_it-na_pizza-margherita_sep2005_sml.jpg')">🍕 Pizza</span>
+      <span class="sample-pill" onclick="loadSampleUrl('https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Good_Food_Display_-_NCI_Visuals_Online.jpg/320px-Good_Food_Display_-_NCI_Visuals_Online.jpg')">🥗 Salad</span>
+      <span class="sample-pill" onclick="loadSampleUrl('https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Hamburger_from_Black_Angus.jpg/320px-Hamburger_from_Black_Angus.jpg')">🍔 Burger</span>
+      <span class="sample-pill" onclick="loadSampleUrl('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Sushi_platter.jpg/320px-Sushi_platter.jpg')">🍣 Sushi</span>
+    </div>
+
+    <!-- Preview -->
+    <div id="preview-area">
+      <div class="preview-header">
+        <span class="preview-title">Selected Image</span>
+        <button class="btn-clear" onclick="clearImage()">✕ Clear</button>
+      </div>
+      <div class="preview-body">
+        <img id="preview-img" src="" alt="preview">
+        <div class="preview-info">
+          <div class="info-row"><span>📄</span><span id="file-name">—</span></div>
+          <div class="info-row"><span>📏</span><span id="file-size">—</span></div>
+          <div class="info-row"><span>🖼️</span><span id="img-dims">—</span></div>
+          <button class="btn-analyze" id="analyze-btn" onclick="analyzeImage()">
+            <span class="btn-icon">🔍</span> Identify Food
+          </button>
+        </div>
+      </div>
+      <div id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Analyzing your dish...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="error-box"></div>
+
+  <!-- Results -->
+  <div id="results-section">
+    <div class="results-header">
+      <div class="results-title">What's on the plate?</div>
+      <div class="inference-badge" id="inference-time">—</div>
+    </div>
+
+    <div class="top-result" id="top-result">
+      <div class="top-emoji" id="top-emoji">🍽️</div>
+      <div class="top-details">
+        <div class="top-label" id="top-label">—</div>
+        <div class="top-meta" id="top-meta"></div>
+        <div class="confidence-bar-wrap">
+          <div class="conf-label">
+            <span>Confidence</span>
+            <span id="top-conf-pct">—</span>
+          </div>
+          <div class="conf-bar">
+            <div class="conf-fill" id="conf-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="other-title">Other possibilities</div>
+    <div class="candidates-grid" id="candidates-grid"></div>
+  </div>
+
+  <footer>
+    Built with <span>♥</span> · MobileNetV3 fine-tuned on Food-101 · 101 food categories
+  </footer>
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+  let currentFile = null;
+  let currentBlob = null;
+
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+      const d = await r.json();
+      const el = document.getElementById('api-status');
+      el.classList.add('ok');
+      document.getElementById('status-text').textContent = `API ready · ${d.device.toUpperCase()} · ${d.classes} classes`;
+    } catch {
+      const el = document.getElementById('api-status');
+      el.classList.add('err');
+      document.getElementById('status-text').textContent = 'API offline — start the backend server';
+    }
+  }
+
+  checkHealth();
+
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  function handleFile(file) {
+    currentFile = file;
+    currentBlob = file;
+    const reader = new FileReader();
+    reader.onload = e => showPreview(e.target.result, file.name, file.size);
+    reader.readAsDataURL(file);
+  }
+
+  async function loadSampleUrl(url) {
+    try {
+      showError('');
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      currentBlob = blob;
+      currentFile = null;
+      const objUrl = URL.createObjectURL(blob);
+      const name = url.split('/').pop().split('?')[0];
+      showPreview(objUrl, name, blob.size);
+    } catch {
+      showError('Could not load sample image. Try uploading one instead.');
+    }
+  }
+
+  function showPreview(src, name, size) {
+    hideResults();
+    document.getElementById('preview-area').style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('analyze-btn').style.display = 'flex';
+
+    const img = document.getElementById('preview-img');
+    img.src = src;
+    img.onload = () => {
+      document.getElementById('img-dims').textContent = `${img.naturalWidth} × ${img.naturalHeight}px`;
+    };
+    document.getElementById('file-name').textContent = name.length > 24 ? name.slice(0, 24) + '...' : name;
+    document.getElementById('file-size').textContent = size < 1024*1024
+      ? (size/1024).toFixed(1) + ' KB'
+      : (size/1024/1024).toFixed(2) + ' MB';
+  }
+
+  function clearImage() {
+    currentFile = null;
+    currentBlob = null;
+    fileInput.value = '';
+    document.getElementById('preview-area').style.display = 'none';
+    hideResults();
+    showError('');
+  }
+
+  async function analyzeImage() {
+    if (!currentBlob) return;
+
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('analyze-btn').style.display = 'none';
+    hideResults();
+    showError('');
+
+    const formData = new FormData();
+    formData.append('file', currentBlob, currentFile?.name || 'image.jpg');
+
+    try {
+      const resp = await fetch(`${API}/predict`, { method: 'POST', body: formData });
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail || 'Prediction failed');
+      }
+      const data = await resp.json();
+      showResults(data);
+    } catch (err) {
+      showError(err.message || 'Could not connect to the API. Is the backend running?');
+    } finally {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('analyze-btn').style.display = 'flex';
+    }
+  }
+
+  function showResults(data) {
+    const section = document.getElementById('results-section');
+    section.style.display = 'block';
+
+    const top = data.predictions[0];
+    document.getElementById('top-emoji').textContent = top.emoji;
+    document.getElementById('top-label').textContent = top.label;
+    document.getElementById('top-conf-pct').textContent = top.confidence.toFixed(1) + '%';
+    document.getElementById('inference-time').textContent = `${data.inference_time_ms}ms · ${data.device}`;
+
+    const meta = document.getElementById('top-meta');
+    meta.innerHTML = '';
+    if (top.cuisine) {
+      meta.innerHTML += `<span class="meta-chip chip-cuisine">🌍 ${top.cuisine}</span>`;
+    }
+    if (top.calories_per_serving) {
+      meta.innerHTML += `<span class="meta-chip chip-calories">🔥 ~${top.calories_per_serving} kcal / serving</span>`;
+    }
+
+    setTimeout(() => {
+      document.getElementById('conf-fill').style.width = `${Math.min(top.confidence, 100)}%`;
+    }, 100);
+
+    const grid = document.getElementById('candidates-grid');
+    grid.innerHTML = '';
+    data.predictions.slice(1).forEach((p, i) => {
+      const card = document.createElement('div');
+      card.className = 'candidate-card';
+      card.style.animationDelay = `${(i + 1) * 0.08}s`;
+      card.innerHTML = `
+        <div class="cand-emoji">${p.emoji}</div>
+        <div class="cand-info">
+          <div class="cand-name">${p.label}</div>
+          <div class="cand-conf">${p.confidence.toFixed(1)}%</div>
+          <div class="cand-bar"><div class="cand-fill" id="cf-${i}"></div></div>
+        </div>`;
+      grid.appendChild(card);
+      setTimeout(() => {
+        document.getElementById(`cf-${i}`).style.width = `${Math.min(p.confidence * 3, 100)}%`;
+      }, 200 + i * 80);
+    });
+
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function hideResults() {
+    document.getElementById('results-section').style.display = 'none';
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('error-box');
+    if (msg) {
+      box.textContent = '⚠️ ' + msg;
+      box.style.display = 'block';
+    } else {
+      box.style.display = 'none';
+    }
+  }
+</script>
+</body>
+</html>
